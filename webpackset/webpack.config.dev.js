@@ -41,7 +41,6 @@ module.exports = webpackMerge(baseConfig, {
     disableHostCheck: true,
     historyApiFallback: true, // using html5 router.
     contentBase: distPath,
-    watchContentBase: true,
     proxy: {}
   }
 });
