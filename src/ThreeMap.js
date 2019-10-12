@@ -7,6 +7,8 @@ export default class ThreeMap{
   constructor(set, geojson){
     this.set = set;
     this.geojson = geojson;
+    this.vector3json = [];
+    this.vector3object = {};
   }
 
   init(){
@@ -17,10 +19,13 @@ export default class ThreeMap{
 
     this.setCamera({ x:10, y: 0, z:100 });
     this.setLight();
-    this. ();
+    this.setControl();
     this.setHelper();
 
     this.drawMap();
+
+    // 添加事件
+    this.addEvent();
     this.animate();
   }
   
@@ -52,7 +57,6 @@ export default class ThreeMap{
 
   // 绘制滴入模型
   drawMap(){
-    this.vector3json = [];
     this.geojson.features.forEach( (data, i)=>{
       // data 是每个省份的数据, 遍历存储到一个新的数据 areasData
       const areas = data.geometry.coordinates[0]; // 多面坐标数组
@@ -71,11 +75,12 @@ export default class ThreeMap{
           areasData.coordinates.push(this.longlatToVictor3(point));
         }
       });
+      this.vector3object[data.properties.name] = areasData;
       this.vector3json.push(areasData);
     });
 
     // 绘制模块
-    const group = new THREE.Group();
+    const provincesGroup = new THREE.Group();
     const lineGroup = new THREE.Group();
     this.vector3json.forEach(province=>{
       // 如果是多面
@@ -84,22 +89,24 @@ export default class ThreeMap{
           const mesh = this.getAreaMesh(area);
           const line = this.getAreaOutlineMesh(area);
           
-          group.add(mesh);
-          group.add(line);
+          provincesGroup.add(mesh);
+          provincesGroup.add(line);
         });
       }else{ // 单面
         const mesh = this.getAreaMesh(province.coordinates);
         const line = this.getAreaOutlineMesh(province.coordinates);
-        group.add(mesh);
-        group.add(line);
+        provincesGroup.add(mesh);
+        provincesGroup.add(line);
       }
     });
 
-    this.scene.add(group);
+    this.scene.add(provincesGroup);
     const lineGroup2 = lineGroup.clone();
     lineGroup2.position.z = -2;
     this.scene.add(lineGroup);
     this.scene.add(lineGroup2);
+
+    this.provincesGroup = provincesGroup;
 
     console.log('vector3json', this.vector3json);
   }
@@ -108,7 +115,6 @@ export default class ThreeMap{
    * 绘制area
    */
   getAreaMesh(points){
-    console.log(points);
     const shape = new THREE.Shape();
     // const [x0, y0] = points[0];
 
@@ -133,6 +139,31 @@ export default class ThreeMap{
     const mesh = new THREE.Mesh(geometry, material);
     return mesh;
   }
+
+
+  updateMouseMoveEffect(){
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObjects(this.provincesGroup.children);
+    this.provincesGroup.children.forEach( mesh=>{
+      mesh.material.color.set(0x005fc3);
+    });
+
+    for(let i=0; i < intersects.length; i++){
+      intersects[i].object.material.color.set(0xffeb3b);
+    }
+  }
+
+
+  addEvent(){
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
+    const mouseMove = (ev)=>{
+      this.mouse.x = ( ev.clientX / window.innerWidth ) * 2 - 1;
+      this.mouse.y = -( ev.clientY / window.innerHeight ) * 2 + 1;
+    };
+    window.addEventListener("mousemove", mouseMove, false);
+  }
+
 
   /**
    * 绘制area的轮廓
@@ -166,8 +197,8 @@ export default class ThreeMap{
 
   animate(){
     requestAnimationFrame(this.animate.bind(this));
+    this.updateMouseMoveEffect();
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
   }
-
 }
